@@ -1,5 +1,4 @@
-// Better Auth mounts its own handler here once auth lands.
-const notImplemented = () => new Response(null, { status: 501 })
+import { toNextJsHandler } from 'better-auth/next-js'
+import { auth } from '@/lib/auth'
 
-export const GET = notImplemented
-export const POST = notImplemented
+export const { GET, POST } = toNextJsHandler(auth)
