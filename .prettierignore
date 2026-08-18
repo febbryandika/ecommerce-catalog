@@ -1,0 +1,10 @@
+.next/
+node_modules/
+pnpm-lock.yaml
+drizzle/
+playwright-report/
+test-results/
+next-env.d.ts
+
+# Vendored shadcn/ui components — the CLI re-emits these in its own style.
+src/components/ui/
