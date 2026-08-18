@@ -3,9 +3,10 @@
 A product catalog where admins manage inventory and customers browse, add to cart, and save
 to a wishlist. Product pages are server-rendered for SEO.
 
-> **Status: Phase 3 — authentication.** The toolchain, app shell, catalog schema and
-> email/password auth are in place. `/login` and `/signup` work and `/admin/*` is guarded.
-> Product, cart and wishlist logic still render placeholders.
+> **Status: Phase 4 — admin product CRUD.** The toolchain, app shell, catalog schema,
+> email/password auth and the admin catalog are in place: `/admin/products` lists, creates,
+> edits, publishes and deletes products. Images, the AI description editor, the public catalog,
+> cart and wishlist still render placeholders.
 
 ## Tech stack
 
@@ -43,8 +44,10 @@ UPDATE "user" SET role = 'admin' WHERE email = 'you@example.com';
 ```
 
 `src/proxy.ts` bounces anonymous visitors away from `/admin/*`, but it is only a cookie-presence
-check for routing convenience. Authorization is enforced separately, inside every admin Server
-Action and Route Handler, via `requireRole('admin')`.
+check for routing convenience — it cannot see the role. Authorization is enforced separately,
+via `requireRole('admin')`: `src/app/admin/layout.tsx` redirects a signed-in customer back to
+the catalog, and every admin Server Action re-checks the role independently, so a forged cookie
+or a direct action call still gets nothing.
 
 ## Scripts
 
@@ -60,7 +63,7 @@ Action and Route Handler, via `requireRole('admin')`.
 | `pnpm test:e2e`    | Playwright E2E                                  |
 | `pnpm db:generate` | Generate migrations from `src/db/schema.ts`     |
 | `pnpm db:migrate`  | Apply migrations                                |
-| `pnpm db:seed`     | Seed categories, products and demo accounts     |
+| `pnpm db:seed`     | Seed the 5 catalog categories (idempotent)      |
 
 `typecheck` runs `next typegen` first because Next 16 generates `next-env.d.ts` and the typed
 route helpers (`PageProps`, `LayoutProps`) into `.next/types` — neither is committed, so a bare
