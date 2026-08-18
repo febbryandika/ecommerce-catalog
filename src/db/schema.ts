@@ -1,5 +1,6 @@
-import { pgTable, text, integer, boolean, timestamp, index } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, boolean, timestamp, unique, index } from 'drizzle-orm/pg-core'
 import { createId } from '@paralleldrive/cuid2'
+import { user } from './auth-schema'
 
 export const categories = pgTable('categories', {
   id: text('id')
@@ -29,4 +30,39 @@ export const products = pgTable(
     index('idx_product_category').on(t.categoryId),
     index('idx_product_published').on(t.isPublished),
   ],
+)
+
+export const cartItems = pgTable(
+  'cart_items',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    productId: text('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    quantity: integer('quantity').notNull().default(1),
+  },
+  // addToCart upserts through this constraint (SPEC 5.1).
+  (t) => [unique('uq_cart_item').on(t.userId, t.productId)],
+)
+
+export const wishlistItems = pgTable(
+  'wishlist_items',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    productId: text('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+  },
+  // toggleWishlist does delete-or-insert against this constraint (SPEC 3.5).
+  (t) => [unique('uq_wishlist_item').on(t.userId, t.productId)],
 )

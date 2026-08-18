@@ -3,8 +3,9 @@
 A product catalog where admins manage inventory and customers browse, add to cart, and save
 to a wishlist. Product pages are server-rendered for SEO.
 
-> **Status: Phase 1 — project setup.** The toolchain, folder skeleton and app shell are in
-> place. Routes render placeholders; there is no database schema, auth or business logic yet.
+> **Status: Phase 3 — authentication.** The toolchain, app shell, catalog schema and
+> email/password auth are in place. `/login` and `/signup` work and `/admin/*` is guarded.
+> Product, cart and wishlist logic still render placeholders.
 
 ## Tech stack
 
@@ -13,6 +14,7 @@ to a wishlist. Product pages are server-rendered for SEO.
 | App     | Next.js 16 (App Router) · React 19 · TypeScript · pnpm |
 | UI      | Tailwind CSS v4 · shadcn/ui (Radix primitives)         |
 | Data    | PostgreSQL · Drizzle ORM · drizzle-kit                 |
+| Auth    | Better Auth (email + password, `role` field)           |
 | Quality | ESLint · Prettier · Vitest · Playwright                |
 
 ## Local setup
@@ -29,6 +31,20 @@ Generate `BETTER_AUTH_SECRET` with `openssl rand -base64 32`.
 
 Postgres is published on **5437** rather than the default 5432 to avoid colliding with other
 local databases. `DATABASE_URL` in `.env.example` already matches.
+
+## Accounts and roles
+
+Sign up at `/signup`. Every account is created with the `customer` role — `role` is declared
+`input: false` in the Better Auth config, so a client cannot assign itself `admin` at signup
+(there is an end-to-end test that attempts exactly that). Admins are promoted by hand:
+
+```sql
+UPDATE "user" SET role = 'admin' WHERE email = 'you@example.com';
+```
+
+`src/proxy.ts` bounces anonymous visitors away from `/admin/*`, but it is only a cookie-presence
+check for routing convenience. Authorization is enforced separately, inside every admin Server
+Action and Route Handler, via `requireRole('admin')`.
 
 ## Scripts
 

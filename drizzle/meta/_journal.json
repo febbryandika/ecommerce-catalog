@@ -8,6 +8,20 @@
       "when": 1787063030462,
       "tag": "0000_init_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787066434555,
+      "tag": "0001_auth_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787066468395,
+      "tag": "0002_cart_and_wishlist",
+      "breakpoints": true
     }
   ]
 }
