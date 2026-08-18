@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# E-commerce Catalog
 
-## Getting Started
+A product catalog where admins manage inventory and customers browse, add to cart, and save
+to a wishlist. Product pages are server-rendered for SEO.
 
-First, run the development server:
+> **Status: Phase 1 — project setup.** The toolchain, folder skeleton and app shell are in
+> place. Routes render placeholders; there is no database schema, auth or business logic yet.
+
+## Tech stack
+
+| Area    | Choice                                                 |
+| ------- | ------------------------------------------------------ |
+| App     | Next.js 16 (App Router) · React 19 · TypeScript · pnpm |
+| UI      | Tailwind CSS v4 · shadcn/ui (Radix primitives)         |
+| Data    | PostgreSQL · Drizzle ORM · drizzle-kit                 |
+| Quality | ESLint · Prettier · Vitest · Playwright                |
+
+## Local setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+cp .env.example .env          # then fill in the blanks
+docker compose up -d          # Postgres 16 on localhost:5437
+pnpm db:migrate
+pnpm dev                      # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Generate `BETTER_AUTH_SECRET` with `openssl rand -base64 32`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Postgres is published on **5437** rather than the default 5432 to avoid colliding with other
+local databases. `DATABASE_URL` in `.env.example` already matches.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+| Script             | Purpose                                         |
+| ------------------ | ----------------------------------------------- |
+| `pnpm dev`         | Dev server                                      |
+| `pnpm build`       | Production build                                |
+| `pnpm start`       | Serve the production build                      |
+| `pnpm lint`        | ESLint (flat config; `next lint` is gone in 16) |
+| `pnpm typecheck`   | `next typegen` then `tsc --noEmit`              |
+| `pnpm format`      | Prettier write · `format:check` to verify       |
+| `pnpm test`        | Vitest unit tests                               |
+| `pnpm test:e2e`    | Playwright E2E                                  |
+| `pnpm db:generate` | Generate migrations from `src/db/schema.ts`     |
+| `pnpm db:migrate`  | Apply migrations                                |
+| `pnpm db:seed`     | Seed categories, products and demo accounts     |
 
-To learn more about Next.js, take a look at the following resources:
+`typecheck` runs `next typegen` first because Next 16 generates `next-env.d.ts` and the typed
+route helpers (`PageProps`, `LayoutProps`) into `.next/types` — neither is committed, so a bare
+`tsc --noEmit` would fail on a fresh clone.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Playwright needs its browser once: `pnpm exec playwright install chromium`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Testing
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm test                     # Vitest, scoped to src/**/*.test.ts
+pnpm test:e2e                 # Playwright, scoped to e2e/
+```
