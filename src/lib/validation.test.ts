@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { productSchema, safeNextPath, signupSchema, updateProductSchema } from '@/lib/validation'
+import {
+  MAX_IMAGE_BYTES,
+  productImageSchema,
+  productSchema,
+  safeNextPath,
+  signupSchema,
+  updateProductSchema,
+} from '@/lib/validation'
 
 describe('safeNextPath', () => {
   it('keeps a same-origin path', () => {
@@ -53,6 +60,7 @@ describe('productSchema', () => {
     price: 12800,
     stock: 5,
     categoryId: null,
+    imageUrl: null,
   }
 
   it('accepts a whole-yen price with no category', () => {
@@ -97,6 +105,22 @@ describe('productSchema', () => {
     const result = productSchema.safeParse({ ...valid, categoryId: 'cat_123' })
     expect(result.data?.categoryId).toBe('cat_123')
   })
+
+  it('accepts an https image url', () => {
+    const url = 'https://pub-abc.r2.dev/products/xyz.jpg'
+    expect(productSchema.safeParse({ ...valid, imageUrl: url }).data?.imageUrl).toBe(url)
+  })
+
+  // The regression this guards: imageUrl is rendered into an <img src>, and z.url() alone
+  // accepts javascript: because the WHATWG parser does.
+  it('rejects an image url that is not https', () => {
+    expect(productSchema.safeParse({ ...valid, imageUrl: 'javascript:alert(1)' }).success).toBe(
+      false,
+    )
+    expect(productSchema.safeParse({ ...valid, imageUrl: 'http://x.test/a.jpg' }).success).toBe(
+      false,
+    )
+  })
 })
 
 describe('updateProductSchema', () => {
@@ -107,6 +131,7 @@ describe('updateProductSchema', () => {
     price: 12800,
     stock: 5,
     categoryId: null,
+    imageUrl: null,
   }
 
   it('accepts the product fields plus an id', () => {
@@ -114,9 +139,43 @@ describe('updateProductSchema', () => {
   })
 
   it('rejects a missing id', () => {
-    const { name, description, price, stock, categoryId } = valid
+    const { name, description, price, stock, categoryId, imageUrl } = valid
     expect(
-      updateProductSchema.safeParse({ name, description, price, stock, categoryId }).success,
+      updateProductSchema.safeParse({ name, description, price, stock, categoryId, imageUrl })
+        .success,
     ).toBe(false)
+  })
+})
+
+describe('productImageSchema', () => {
+  const file = (type: string, bytes = 8) => new File([new Uint8Array(bytes)], 'photo', { type })
+
+  it('accepts every type the dropzone offers', () => {
+    for (const type of ['image/jpeg', 'image/png', 'image/webp']) {
+      expect(productImageSchema.safeParse(file(type)).success).toBe(true)
+    }
+  })
+
+  it('rejects a type the accept attribute would have blocked', () => {
+    expect(productImageSchema.safeParse(file('image/gif')).success).toBe(false)
+  })
+
+  // Not just "another unsupported type": an SVG is a script-bearing document, and these are
+  // served from a public bucket.
+  it('rejects an svg', () => {
+    expect(productImageSchema.safeParse(file('image/svg+xml')).success).toBe(false)
+  })
+
+  it('accepts a file exactly at the size cap', () => {
+    expect(productImageSchema.safeParse(file('image/png', MAX_IMAGE_BYTES)).success).toBe(true)
+  })
+
+  it('rejects a file one byte over the size cap', () => {
+    expect(productImageSchema.safeParse(file('image/png', MAX_IMAGE_BYTES + 1)).success).toBe(false)
+  })
+
+  it('rejects input that is not a file at all', () => {
+    expect(productImageSchema.safeParse('https://x.test/a.jpg').success).toBe(false)
+    expect(productImageSchema.safeParse(null).success).toBe(false)
   })
 })

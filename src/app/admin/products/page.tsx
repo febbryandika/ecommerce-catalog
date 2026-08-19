@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { desc, eq } from 'drizzle-orm'
 import { ProductRowActions } from '@/components/product-row-actions'
@@ -25,6 +26,7 @@ export default async function AdminProductsPage() {
     .select({
       id: products.id,
       name: products.name,
+      imageUrl: products.imageUrl,
       price: products.price,
       stock: products.stock,
       isPublished: products.isPublished,
@@ -64,6 +66,9 @@ export default async function AdminProductsPage() {
           <TableCaption>Every product in the catalog, newest first.</TableCaption>
           <TableHeader>
             <TableRow>
+              <TableHead>
+                <span className="sr-only">Image</span>
+              </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
               <TableHead className="text-right">Price</TableHead>
@@ -77,6 +82,19 @@ export default async function AdminProductsPage() {
           <TableBody>
             {rows.map((row) => (
               <TableRow key={row.id}>
+                <TableCell>
+                  {row.imageUrl ? (
+                    <Image
+                      src={row.imageUrl}
+                      alt={row.name}
+                      width={40}
+                      height={40}
+                      className="size-10 rounded-md border object-cover"
+                    />
+                  ) : (
+                    <div className="bg-muted size-10 rounded-md border" aria-hidden="true" />
+                  )}
+                </TableCell>
                 <TableCell className="font-medium">{row.name}</TableCell>
                 <TableCell className="text-muted-foreground">
                   {row.categoryName ?? 'Uncategorised'}

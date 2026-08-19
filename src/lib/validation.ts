@@ -37,6 +37,10 @@ export const productSchema = z.object({
     .min(0, 'Stock cannot be negative.')
     .max(INT4_MAX, 'Stock is too large.'),
   categoryId: z.string().min(1, 'Choose a category.').nullable(),
+  // Only ever set from the upload route's response, never typed by hand — but it still arrives
+  // from the client on save and ends up in an <img src>, so https-only stops a javascript: or
+  // data: URL from surviving the parse (SPEC 8).
+  imageUrl: z.url({ protocol: /^https$/, error: 'That is not a valid image URL.' }).nullable(),
 })
 
 export const updateProductSchema = productSchema.extend({
@@ -45,6 +49,20 @@ export const updateProductSchema = productSchema.extend({
 
 export type ProductInput = z.infer<typeof productSchema>
 export type UpdateProductInput = z.infer<typeof updateProductSchema>
+
+/**
+ * The upload route's only input. Deliberately separate from productSchema because the two
+ * travel apart: the file is POSTed to /api/upload as multipart, and only the URL that comes
+ * back is saved with the product. The limits live here rather than in r2.ts so the dropzone can
+ * build its accept="" from the same list without pulling the AWS SDK into the client bundle.
+ */
+export const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+export const productImageSchema = z
+  .file({ error: 'Choose an image to upload.' })
+  .max(MAX_IMAGE_BYTES, 'Images must be 5 MB or smaller.')
+  .mime([...IMAGE_MIME_TYPES], 'Images must be a JPEG, PNG or WebP.')
 
 /**
  * Constrains a `?next=` value to a path on this origin. Anything else — a protocol-relative

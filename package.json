@@ -17,6 +17,7 @@
     "db:seed": "node --env-file-if-exists=.env src/db/seed.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1112.0",
     "@hookform/resolvers": "^5.9.1",
     "@paralleldrive/cuid2": "^3.3.0",
     "better-auth": "^1.6.29",
