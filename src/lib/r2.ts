@@ -60,6 +60,8 @@ export async function putProductImage(file: File): Promise<string> {
       // has already capped this at 5 MB.
       Body: Buffer.from(await file.arrayBuffer()),
       ContentType: file.type,
+      // Every key is a fresh cuid2, so an object can never change under a given URL.
+      CacheControl: 'public, max-age=31536000, immutable',
     }),
   )
 

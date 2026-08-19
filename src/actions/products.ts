@@ -72,7 +72,7 @@ export async function createProduct(input: ProductInput): Promise<ActionResult> 
 
   const parsed = productSchema.safeParse(input)
   if (!parsed.success) return { error: 'Check the form for errors.' }
-  const { name, description, price, stock, categoryId } = parsed.data
+  const { name, description, price, stock, categoryId, imageUrl } = parsed.data
 
   try {
     await db.insert(products).values({
@@ -82,7 +82,7 @@ export async function createProduct(input: ProductInput): Promise<ActionResult> 
       price,
       stock,
       categoryId,
-      // imageUrl stays null until the R2 upload route lands (SPEC 11, step 7).
+      imageUrl,
     })
   } catch (error) {
     if (isUniqueViolation(error)) return { error: 'A product with that name already exists.' }
@@ -99,7 +99,7 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
 
   const parsed = updateProductSchema.safeParse(input)
   if (!parsed.success) return { error: 'Check the form for errors.' }
-  const { id, name, description, price, stock, categoryId } = parsed.data
+  const { id, name, description, price, stock, categoryId, imageUrl } = parsed.data
 
   let updated
   try {
@@ -113,6 +113,7 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
         price,
         stock,
         categoryId,
+        imageUrl,
       })
       .where(eq(products.id, id))
       .returning({ id: products.id })

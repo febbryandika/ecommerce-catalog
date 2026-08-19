@@ -37,6 +37,10 @@ export const productSchema = z.object({
     .min(0, 'Stock cannot be negative.')
     .max(INT4_MAX, 'Stock is too large.'),
   categoryId: z.string().min(1, 'Choose a category.').nullable(),
+  // Only ever set from the upload route's response, never typed by hand — but it still arrives
+  // from the client on save and ends up in an <img src>, so https-only stops a javascript: or
+  // data: URL from surviving the parse (SPEC 8).
+  imageUrl: z.url({ protocol: /^https$/, error: 'That is not a valid image URL.' }).nullable(),
 })
 
 export const updateProductSchema = productSchema.extend({

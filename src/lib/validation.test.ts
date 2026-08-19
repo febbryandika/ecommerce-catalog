@@ -53,6 +53,7 @@ describe('productSchema', () => {
     price: 12800,
     stock: 5,
     categoryId: null,
+    imageUrl: null,
   }
 
   it('accepts a whole-yen price with no category', () => {
@@ -107,6 +108,7 @@ describe('updateProductSchema', () => {
     price: 12800,
     stock: 5,
     categoryId: null,
+    imageUrl: null,
   }
 
   it('accepts the product fields plus an id', () => {

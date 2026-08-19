@@ -38,6 +38,7 @@ export default async function AdminProductFormPage({ params }: PageProps<'/admin
       price: products.price,
       stock: products.stock,
       categoryId: products.categoryId,
+      imageUrl: products.imageUrl,
     })
     .from(products)
     .where(eq(products.id, id))

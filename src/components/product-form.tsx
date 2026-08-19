@@ -3,9 +3,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { createProduct, updateProduct } from '@/actions/products'
+import { ImageDropzone } from '@/components/image-dropzone'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -51,7 +52,7 @@ export function ProductForm({ product, categories }: Props) {
     resolver: zodResolver(productSchema),
     // price and stock are left undefined rather than 0 so a new product starts with empty
     // inputs and the "enter a price" message fires instead of silently saving a free product.
-    defaultValues: product ?? { name: '', description: '', categoryId: null },
+    defaultValues: product ?? { name: '', description: '', categoryId: null, imageUrl: null },
   })
 
   async function onSubmit(values: ProductInput) {
@@ -68,6 +69,10 @@ export function ProductForm({ product, categories }: Props) {
     router.push('/admin/products')
     router.refresh()
   }
+
+  // The preview's alt text is the product name (SPEC 3.7), which is still being typed in
+  // create mode — hence useWatch rather than a one-off read.
+  const name = useWatch({ control: form.control, name: 'name' })
 
   const rootError = form.formState.errors.root?.message
 
@@ -187,6 +192,26 @@ export function ProductForm({ product, categories }: Props) {
                 </SelectContent>
               </Select>
               <FormDescription>Optional — products can sit outside a category.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="imageUrl"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Image</FormLabel>
+              <FormControl>
+                <ImageDropzone
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  alt={name || 'Product image'}
+                  onUploadError={(message) => form.setError('imageUrl', { message })}
+                />
+              </FormControl>
+              <FormDescription>One image per product. Uploaded straight away.</FormDescription>
               <FormMessage />
             </FormItem>
           )}
