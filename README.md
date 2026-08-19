@@ -5,11 +5,21 @@
 A product catalog where admins manage inventory and customers browse, add to cart, and save
 to a wishlist. Product pages are server-rendered for SEO.
 
-> **Status: Phase 5 — product images.** The toolchain, app shell, catalog schema,
-> email/password auth, the admin catalog and image upload to Cloudflare R2 are in place:
+> **Status: Phase 6 — seed data.** The toolchain, app shell, catalog schema, email/password
+> auth, the admin catalog, image upload to Cloudflare R2 and the demo seed are in place:
 > `/admin/products` lists, creates, edits, publishes and deletes products, each with one
-> uploaded image. The AI description editor, the public catalog, cart and wishlist still
-> render placeholders.
+> uploaded image, and `pnpm db:seed` fills the catalog with 31 products and two demo accounts.
+> The AI description editor, the public catalog, cart and wishlist still render placeholders.
+
+## Demo accounts
+
+`pnpm db:seed` creates both. They are demo credentials, published on purpose — do not reuse
+this password anywhere that matters.
+
+| Role     | Email                       | Password            |
+| -------- | --------------------------- | ------------------- |
+| Admin    | `demo-admin@example.com`    | `demo-password-123` |
+| Customer | `demo-customer@example.com` | `demo-password-123` |
 
 ## Tech stack
 
@@ -29,6 +39,7 @@ pnpm install
 cp .env.example .env          # then fill in the blanks
 docker compose up -d          # Postgres 16 on localhost:5437
 pnpm db:migrate
+pnpm db:seed                  # 5 categories, 31 products, 2 demo accounts
 pnpm dev                      # http://localhost:3000
 ```
 
@@ -79,6 +90,39 @@ Two limits worth knowing rather than discovering:
 - `pnpm test:e2e` **skips** the upload round-trip test when `R2_BUCKET` is unset. The
   authorization and validation tests still run; only the live bucket write is gated.
 
+## Seed data
+
+`pnpm db:seed` fills an empty database with something worth looking at — 5 categories, 31
+products with real names and whole-yen prices, and the two demo accounts above. Stock is varied
+deliberately: one product is out of stock and two sit in low single digits, so those states have
+something to render. Five products carry full multi-paragraph descriptions, and one is left
+unpublished so the admin list shows a draft while the public grid filters it out.
+
+It is **idempotent**. Products conflict on `slug` and existing rows are left alone, which means a
+re-run costs nothing and — deliberately — does not overwrite anything you changed while poking
+at the demo. It seeds no cart or wishlist rows: a fresh visitor should find both empty.
+
+Product photos are not committed. Drop them in `seed/images/`, named after each product's slug —
+`seed/images/README.md` lists every expected filename. The script uploads what it finds to R2
+under a stable `seed/<slug>` key, so a photo is uploaded exactly once no matter how often you
+re-run; to replace one, delete the object from the bucket first. A missing file is not an error,
+just a product with no image, and every one of them is named in the summary line.
+
+Without `R2_*` set the image step skips itself entirely and the seed still runs end to end —
+the same gate `pnpm test:e2e` uses for its upload round-trip. Products seeded that way keep a
+null `image_url`, and a later run with R2 configured fills it in.
+
+Two things the script does that the app cannot:
+
+- It writes the `user` and `account` rows directly, hashing the password with Better Auth's own
+  scrypt. There is no HTTP request that can create an **admin** — `role` is declared
+  `input: false`, so `/api/auth/sign-up/email` silently rewrites it to `customer`. This is the
+  same promote-by-SQL route documented under "Accounts and roles".
+- It talks to Postgres in plain SQL rather than through Drizzle. `pnpm db:seed` runs the script
+  on bare Node type-stripping with no bundler, so tsconfig `paths` do not resolve and
+  `src/db/schema.ts` — which imports `./auth-schema` without a file extension — cannot be
+  loaded. Every import in `scripts/seed.ts` is a package specifier for that reason.
+
 ## Scripts
 
 | Script             | Purpose                                         |
@@ -93,7 +137,7 @@ Two limits worth knowing rather than discovering:
 | `pnpm test:e2e`    | Playwright E2E                                  |
 | `pnpm db:generate` | Generate migrations from `src/db/schema.ts`     |
 | `pnpm db:migrate`  | Apply migrations                                |
-| `pnpm db:seed`     | Seed the 5 catalog categories (idempotent)      |
+| `pnpm db:seed`     | Seed the demo catalog and accounts (idempotent) |
 
 `typecheck` runs `next typegen` first because Next 16 generates `next-env.d.ts` and the typed
 route helpers (`PageProps`, `LayoutProps`) into `.next/types` — neither is committed, so a bare
