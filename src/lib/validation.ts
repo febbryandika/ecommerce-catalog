@@ -65,6 +65,20 @@ export const productImageSchema = z
   .mime([...IMAGE_MIME_TYPES], 'Images must be a JPEG, PNG or WebP.')
 
 /**
+ * The AI description generator's only input (SPEC 3.6, 5.2). Shared with the editor's Generate
+ * button the same way productImageSchema is shared with the dropzone: the client gates on it for
+ * instant feedback, the route re-parses it because that is the boundary (SPEC 8).
+ *
+ * Sentence-style messages, because /api/ai/describe joins the issues with ' ' before answering.
+ */
+export const describeSchema = z.object({
+  name: z.string().trim().min(1, 'Enter a product name first.'),
+  specs: z.string().trim().min(1, 'Enter some specs to generate from.'),
+})
+
+export type DescribeInput = z.infer<typeof describeSchema>
+
+/**
  * Constrains a `?next=` value to a path on this origin. Anything else — a protocol-relative
  * `//evil.com`, an absolute URL, a `javascript:` payload — collapses to '/', so the login
  * redirect cannot be turned into an open redirect.

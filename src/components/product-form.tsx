@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { createProduct, updateProduct } from '@/actions/products'
+import { DescriptionEditor } from '@/components/description-editor'
 import { ImageDropzone } from '@/components/image-dropzone'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { productSchema, type ProductInput } from '@/lib/validation'
 
 // Radix SelectItem rejects value="", so "no category" needs a sentinel. It never collides with
@@ -70,15 +70,15 @@ export function ProductForm({ product, categories }: Props) {
     router.refresh()
   }
 
-  // The preview's alt text is the product name (SPEC 3.7), which is still being typed in
-  // create mode — hence useWatch rather than a one-off read.
+  // Read live rather than once: it is the image preview's alt text (SPEC 3.7) and the subject
+  // the AI generator is handed, and in create mode it is still being typed.
   const name = useWatch({ control: form.control, name: 'name' })
 
   const rootError = form.formState.errors.root?.message
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 grid max-w-xl gap-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 grid max-w-3xl gap-6">
         <FormField
           control={form.control}
           name="name"
@@ -101,10 +101,14 @@ export function ProductForm({ product, categories }: Props) {
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea rows={6} {...field} />
+                <DescriptionEditor
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  productName={name}
+                />
               </FormControl>
               <FormDescription>
-                Plain text for now — the rich-text editor arrives with the AI generator.
+                Rich text, sanitised on save. Add specs on the right to draft it with AI.
               </FormDescription>
               <FormMessage />
             </FormItem>

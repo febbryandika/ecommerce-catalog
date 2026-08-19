@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { db } from '@/db'
 import { products } from '@/db/schema'
 import { AuthorizationError, requireRole } from '@/lib/auth'
+import { sanitizeDescription } from '@/lib/sanitize'
 import { nextAvailableSlug, slugify } from '@/lib/slug'
 import {
   productSchema,
@@ -78,7 +79,7 @@ export async function createProduct(input: ProductInput): Promise<ActionResult> 
     await db.insert(products).values({
       name,
       slug: await resolveSlug(name),
-      description: description || null,
+      description: sanitizeDescription(description) || null,
       price,
       stock,
       categoryId,
@@ -109,7 +110,7 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
         name,
         // Regenerated on rename: public routes key off the id (SPEC 6), so nothing breaks.
         slug: await resolveSlug(name, id),
-        description: description || null,
+        description: sanitizeDescription(description) || null,
         price,
         stock,
         categoryId,
