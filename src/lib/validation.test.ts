@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  describeSchema,
   MAX_IMAGE_BYTES,
   productImageSchema,
   productSchema,
@@ -177,5 +178,27 @@ describe('productImageSchema', () => {
   it('rejects input that is not a file at all', () => {
     expect(productImageSchema.safeParse('https://x.test/a.jpg').success).toBe(false)
     expect(productImageSchema.safeParse(null).success).toBe(false)
+  })
+})
+
+describe('describeSchema', () => {
+  it('rejects whitespace-only specs, which would otherwise reach the model as an empty prompt', () => {
+    const result = describeSchema.safeParse({ name: 'Aurora Headphones', specs: '   \n  ' })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects a blank product name', () => {
+    expect(describeSchema.safeParse({ name: '', specs: '- 40 mm drivers' }).success).toBe(false)
+  })
+
+  it('trims what it passes on, so the prompt never carries the textarea padding', () => {
+    const result = describeSchema.safeParse({
+      name: '  Aurora Headphones  ',
+      specs: '- 40 mm drivers\n',
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data).toEqual({ name: 'Aurora Headphones', specs: '- 40 mm drivers' })
   })
 })

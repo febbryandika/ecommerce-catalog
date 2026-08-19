@@ -5,11 +5,13 @@
 A product catalog where admins manage inventory and customers browse, add to cart, and save
 to a wishlist. Product pages are server-rendered for SEO.
 
-> **Status: Phase 6 — seed data.** The toolchain, app shell, catalog schema, email/password
-> auth, the admin catalog, image upload to Cloudflare R2 and the demo seed are in place:
-> `/admin/products` lists, creates, edits, publishes and deletes products, each with one
-> uploaded image, and `pnpm db:seed` fills the catalog with 31 products and two demo accounts.
-> The AI description editor, the public catalog, cart and wishlist still render placeholders.
+> **Status: Phase 7 — AI description editor.** The toolchain, app shell, catalog schema,
+> email/password auth, the admin catalog, image upload to Cloudflare R2 and the demo seed are
+> in place: `/admin/products` lists, creates, edits, publishes and deletes products, each with
+> one uploaded image, and `pnpm db:seed` fills the catalog with 31 products and two demo
+> accounts. Product descriptions are now edited in TipTap, with marketing copy streaming in
+> live from Claude and sanitised on save. The public catalog, cart and wishlist still render
+> placeholders.
 
 ## Demo accounts
 
