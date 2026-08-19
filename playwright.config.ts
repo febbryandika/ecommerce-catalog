@@ -1,4 +1,10 @@
+import { existsSync } from 'node:fs'
 import { defineConfig, devices } from '@playwright/test'
+
+// Playwright does not read .env, but the upload suite needs DATABASE_URL to promote its own
+// account to admin and R2_BUCKET to decide whether the live-R2 test can run. loadEnvFile is
+// built into Node, and the guard matters because it throws when the file is absent (CI).
+if (existsSync('.env')) process.loadEnvFile('.env')
 
 const baseURL = 'http://localhost:3000'
 
