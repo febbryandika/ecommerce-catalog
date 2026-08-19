@@ -1,5 +1,7 @@
 # E-commerce Catalog
 
+[![CI](https://github.com/febbryandika/ecommerce-catalog/actions/workflows/ci.yml/badge.svg)](https://github.com/febbryandika/ecommerce-catalog/actions/workflows/ci.yml)
+
 A product catalog where admins manage inventory and customers browse, add to cart, and save
 to a wishlist. Product pages are server-rendered for SEO.
 
@@ -108,3 +110,8 @@ account to admin over the same database the app uses, the way an admin is made b
 pnpm test                     # Vitest, scoped to src/**/*.test.ts
 pnpm test:e2e                 # Playwright, scoped to e2e/
 ```
+
+CI runs `lint → typecheck → format:check → vitest → playwright` on every pull request and on
+`main`, against a Postgres service container. It deliberately sets no `R2_*` variables: the
+upload round-trip test skips itself, and a build with them absent is what proves the S3 client
+in `src/lib/r2.ts` is constructed lazily rather than at module load.

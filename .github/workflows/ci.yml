@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    # Mirrors docker-compose.yml, minus the 5437 port remap — nothing else is listening here,
+    # so the container keeps the default 5432.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ecommerce_catalog
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ecommerce_catalog"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ecommerce_catalog
+      BETTER_AUTH_SECRET: ci-secret-not-used-outside-this-job
+      BETTER_AUTH_URL: http://localhost:3000
+      # No R2_* on purpose: the upload round-trip test skips itself rather than failing, and a
+      # build with them absent is the check that the S3 client is built lazily (src/lib/r2.ts).
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      - run: pnpm format:check
+
+      - run: pnpm test
+
+      - run: pnpm db:migrate
+
+      # Chromium only — playwright.config.ts defines a single chromium project.
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
