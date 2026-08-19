@@ -59,3 +59,21 @@ test('an anonymous visitor to /admin is sent to login with a next param', async 
   await expect(page).toHaveURL('/login?next=%2Fadmin%2Fproducts')
   await expect(page.getByRole('heading', { level: 1, name: 'Log in' })).toBeVisible()
 })
+
+test('a signed-in customer is redirected away from /admin', async ({ page }) => {
+  const { name, email, password } = newAccount()
+
+  await page.goto('/signup')
+  await page.getByLabel('Name').fill(name)
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill(password)
+  await page.getByRole('button', { name: 'Create account' }).click()
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+
+  // proxy.ts sees a session cookie and waves this through — the admin layout's requireRole is
+  // what actually turns a customer away (SPEC 3.1, 8).
+  await page.goto('/admin/products')
+
+  await expect(page).toHaveURL('/')
+  await expect(page.getByRole('heading', { level: 1, name: 'Catalog' })).toBeVisible()
+})
