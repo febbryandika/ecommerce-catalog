@@ -55,6 +55,19 @@ jobs:
 
       - run: pnpm db:migrate
 
+      - run: pnpm db:seed
+
+      # Idempotency is the seed's headline property (SPEC 10) and the easiest one to break
+      # without noticing, so the second run has to prove it rather than merely survive: the
+      # summary must report nothing new in any of the three groups. No R2_* in this job, so
+      # the image step skips itself and nothing reaches a bucket.
+      - name: Seeding twice must be a no-op
+        run: |
+          set -eo pipefail
+          pnpm db:seed | tee "$RUNNER_TEMP/seed-rerun.log"
+          grep -qE 'categories \(0 new\).*products \(0 new\).*accounts \(0 new\)' \
+            "$RUNNER_TEMP/seed-rerun.log"
+
       # Chromium only — playwright.config.ts defines a single chromium project.
       - run: pnpm exec playwright install --with-deps chromium
 
