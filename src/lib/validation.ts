@@ -47,6 +47,20 @@ export type ProductInput = z.infer<typeof productSchema>
 export type UpdateProductInput = z.infer<typeof updateProductSchema>
 
 /**
+ * The upload route's only input. Deliberately separate from productSchema because the two
+ * travel apart: the file is POSTed to /api/upload as multipart, and only the URL that comes
+ * back is saved with the product. The limits live here rather than in r2.ts so the dropzone can
+ * build its accept="" from the same list without pulling the AWS SDK into the client bundle.
+ */
+export const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+export const productImageSchema = z
+  .file({ error: 'Choose an image to upload.' })
+  .max(MAX_IMAGE_BYTES, 'Images must be 5 MB or smaller.')
+  .mime([...IMAGE_MIME_TYPES], 'Images must be a JPEG, PNG or WebP.')
+
+/**
  * Constrains a `?next=` value to a path on this origin. Anything else — a protocol-relative
  * `//evil.com`, an absolute URL, a `javascript:` payload — collapses to '/', so the login
  * redirect cannot be turned into an open redirect.
