@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sanitizeDescription } from '@/lib/sanitize'
+import { sanitizeDescription, toMetaDescription } from '@/lib/sanitize'
 
 // The stored HTML is written by an admin but rendered on a public product page, so the
 // interesting cases are the ones where the admin account is the attacker — or where a pasted
@@ -53,5 +53,49 @@ describe('sanitizeDescription', () => {
 
   it('leaves an empty string empty, so the action still stores NULL', () => {
     expect(sanitizeDescription('')).toBe('')
+  })
+})
+
+describe('toMetaDescription', () => {
+  it('strips the markup', () => {
+    expect(toMetaDescription('<p>Hi</p>')).toBe('Hi')
+  })
+
+  it('separates block elements with a space', () => {
+    expect(toMetaDescription('<p>a</p><p>b</p>')).toBe('a b')
+    expect(toMetaDescription('<ul><li>a</li><li>b</li></ul>')).toBe('a b')
+    expect(toMetaDescription('a<br>b')).toBe('a b')
+  })
+
+  it('does not separate inline elements', () => {
+    expect(toMetaDescription('a<strong>b</strong>')).toBe('ab')
+  })
+
+  // The regression the string-returning DOMPurify overload would cause: sanitize() serialises
+  // back to HTML, so entities come back escaped and React escapes them again.
+  it('decodes entities rather than re-escaping them', () => {
+    expect(toMetaDescription('<p>Home &amp; Kitchen</p>')).toBe('Home & Kitchen')
+    expect(toMetaDescription('<p>3.5&nbsp;mm jack</p>')).toBe('3.5 mm jack')
+  })
+
+  it('collapses whitespace runs and trims', () => {
+    expect(toMetaDescription('<p>  a   \n  b  </p>')).toBe('a b')
+  })
+
+  it('leaves a description at the limit intact', () => {
+    const text = 'x'.repeat(160)
+    expect(toMetaDescription(`<p>${text}</p>`)).toBe(text)
+  })
+
+  it('truncates a longer one on a word boundary', () => {
+    const result = toMetaDescription(`<p>${'word '.repeat(60)}</p>`)
+
+    expect(result.length).toBeLessThanOrEqual(160)
+    expect(result.endsWith('…')).toBe(true)
+    expect(result).not.toMatch(/wor…$/)
+  })
+
+  it('returns an empty string for an empty description', () => {
+    expect(toMetaDescription('')).toBe('')
   })
 })
