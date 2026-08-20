@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -83,6 +83,18 @@ export function ProductFilters({ categories }: Props) {
     // user.
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
   }
+
+  // The timer is otherwise only cleared by the next keystroke, so it outlives this component
+  // and can fire after the user has navigated away. Standard cleanup, and it narrows — but does
+  // not close — a race where clicking a product inside the debounce window lets a late
+  // router.replace cancel that navigation. Closing it properly needs a UX decision about what a
+  // half-typed search should do when the user clicks away; see the note in CLAUDE.md.
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current)
+    },
+    [],
+  )
 
   function onSearchChange(value: string) {
     setTerm(value)
