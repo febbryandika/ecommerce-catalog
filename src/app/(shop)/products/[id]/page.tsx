@@ -4,8 +4,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { and, eq } from 'drizzle-orm'
+import { AddToCartButton } from '@/components/add-to-cart-button'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { WishlistToggle } from '@/components/wishlist-toggle'
 import { db } from '@/db'
 import { categories, products } from '@/db/schema'
 import { formatJpy } from '@/lib/format'
@@ -101,6 +103,30 @@ export default async function ProductDetailPage({ params }: PageProps<'/products
           <Badge variant={product.stock > 0 ? 'default' : 'secondary'} className="mt-4">
             {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
           </Badge>
+
+          {/* Client islands. This page exports `revalidate = 60`, so whether the visitor has
+              this product saved or in their cart cannot be read here — it arrives in the
+              browser from TanStack Query, leaving the rendered HTML the same for everyone. */}
+          <div className="mt-6 flex items-center gap-2">
+            <AddToCartButton
+              product={{
+                productId: product.id,
+                name: product.name,
+                price: product.price,
+                imageUrl: product.imageUrl,
+                stock: product.stock,
+              }}
+            />
+            <WishlistToggle
+              product={{
+                productId: product.id,
+                name: product.name,
+                price: product.price,
+                imageUrl: product.imageUrl,
+                stock: product.stock,
+              }}
+            />
+          </div>
 
           {product.description ? (
             // Already sanitised on save, inside the Server Actions (src/lib/sanitize.ts) — this

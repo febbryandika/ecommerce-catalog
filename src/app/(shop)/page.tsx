@@ -64,6 +64,9 @@ export default async function CatalogPage({ searchParams }: PageProps<'/'>) {
       name: products.name,
       price: products.price,
       imageUrl: products.imageUrl,
+      // Selected so a card can disable its add-to-cart button rather than letting the click
+      // travel to the server only to come back "out of stock".
+      stock: products.stock,
     })
     .from(products)
     .leftJoin(categories, eq(products.categoryId, categories.id))

@@ -1,6 +1,8 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { AddToCartButton } from '@/components/add-to-cart-button'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { WishlistToggle } from '@/components/wishlist-toggle'
 import { formatJpy } from '@/lib/format'
 
 type Props = {
@@ -8,6 +10,7 @@ type Props = {
   name: string
   price: number
   imageUrl: string | null
+  stock: number
 }
 
 /**
@@ -16,13 +19,17 @@ type Props = {
  *
  * The title's link stretches over the whole card via the after: pseudo-element, so the card is
  * one link with one accessible name rather than an image link and a title link pointing at the
- * same place. Phase 9's wishlist toggle and add-to-cart button belong in a CardFooter below
- * CardContent, and will need `relative z-10` to sit above that overlay.
+ * same place. The CardFooter controls carry `relative z-10` to sit above that overlay — without
+ * it the stretched link swallows their clicks.
+ *
+ * The footer's two children are client islands. The card itself stays a Server Component: per-user
+ * state (saved? in the cart?) arrives from TanStack Query in the browser, never from a server read,
+ * because a cookies() call here would opt the SEO surface into dynamic rendering.
  *
  * Routes by id, not slug: updateProduct regenerates the slug on rename, and public links key
  * off the id so nothing breaks (src/actions/products.ts).
  */
-export function ProductCard({ id, name, price, imageUrl }: Props) {
+export function ProductCard({ id, name, price, imageUrl, stock }: Props) {
   return (
     <Card className="relative h-full pt-0">
       {imageUrl ? (
@@ -53,6 +60,11 @@ export function ProductCard({ id, name, price, imageUrl }: Props) {
       <CardContent>
         <p className="tabular-nums">{formatJpy(price)}</p>
       </CardContent>
+
+      <CardFooter className="relative z-10 justify-between gap-2">
+        <AddToCartButton size="sm" product={{ productId: id, name, price, imageUrl, stock }} />
+        <WishlistToggle product={{ productId: id, name, price, imageUrl, stock }} />
+      </CardFooter>
     </Card>
   )
 }

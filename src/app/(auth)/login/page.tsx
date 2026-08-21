@@ -4,8 +4,16 @@ import { safeNextPath } from '@/lib/validation'
 
 export const metadata = { title: 'Log in' }
 
+/** Same narrowing as the catalog params: a repeated key arrives as string[] and is discarded. */
+function single(value: string | string[] | undefined): string | undefined {
+  return typeof value === 'string' ? value : undefined
+}
+
 export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
-  const { next } = await searchParams
+  // `add` and `wish` carry a click that happened before the visitor had a session (SPEC 3.4,
+  // 3.5). They are replayed once by AuthForm after a successful sign-in; nothing is stored
+  // server-side, so an abandoned login simply loses the intent, which is the correct outcome.
+  const { next, add, wish } = await searchParams
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-12">
@@ -17,7 +25,12 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
         </Link>
         .
       </p>
-      <AuthForm mode="login" next={safeNextPath(typeof next === 'string' ? next : undefined)} />
+      <AuthForm
+        mode="login"
+        next={safeNextPath(single(next))}
+        add={single(add)}
+        wish={single(wish)}
+      />
     </section>
   )
 }

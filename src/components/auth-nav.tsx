@@ -1,5 +1,6 @@
 'use client'
 
+import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,7 @@ import { authClient } from '@/lib/auth-client'
  */
 export function AuthNav() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { data: session, isPending } = authClient.useSession()
 
   if (isPending) {
@@ -44,6 +46,8 @@ export function AuthNav() {
           size="sm"
           onClick={async () => {
             await authClient.signOut()
+            // The cart and wishlist caches belong to the session that just ended.
+            queryClient.clear()
             router.refresh()
           }}
         >
