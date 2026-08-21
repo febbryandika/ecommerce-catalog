@@ -122,6 +122,15 @@ test('a product detail page renders with its own title and OG tags', async ({ pa
   // U+FFE5 FULLWIDTH YEN SIGN, not U+00A5 — same as format.test.ts.
   await expect(page.getByText('￥34,800')).toBeVisible()
 
+  // The head is rewritten as part of the client-side navigation, and for a moment it can carry
+  // both the layout's default description and this page's — or neither. It always settles on
+  // exactly one (measured: 1 of 16 navigations sampled mid-update, 0 of 16 after settling), but
+  // Playwright raises a strict-mode violation the instant a locator matches two nodes and does
+  // *not* retry that, so sampling mid-update fails outright. toHaveCount does retry, so this
+  // waits for the finished head — and asserts the thing that actually matters for SEO, that
+  // there is exactly one description, which the assertions below never checked.
+  await expect(page.locator('meta[name="description"]')).toHaveCount(1)
+
   // SEO is the stated reason this project is Stack A, so the head is the assertion that
   // matters. The '%s · E-commerce Catalog' template lives in the root layout.
   await expect(page).toHaveTitle('Aurora Over-Ear Headphones · E-commerce Catalog')
