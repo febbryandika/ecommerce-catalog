@@ -21,7 +21,10 @@ export async function signUpAsAdmin(page: Page) {
   await page.getByLabel('Email').fill(account.email)
   await page.getByLabel('Password').fill(account.password)
   await page.getByRole('button', { name: 'Create account' }).click()
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+  // Better Auth hashes with scrypt at N=16384, which is deliberately slow and blocks the dev
+  // server's event loop. Under parallel workers several signups queue behind each other, so this
+  // barrier needs more headroom than the 5 s default.
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible({ timeout: 30_000 })
 
   const connectionString = process.env.DATABASE_URL
   if (!connectionString) {
