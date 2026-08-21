@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { AuthNav } from '@/components/auth-nav'
+import { CartSheet } from '@/components/cart-sheet'
 
 const navItems = [
   { href: '/', label: 'Catalog' },
@@ -23,6 +24,9 @@ export function SiteHeader() {
                 </Link>
               </li>
             ))}
+            <li>
+              <CartSheet />
+            </li>
             <AuthNav />
           </ul>
         </nav>
