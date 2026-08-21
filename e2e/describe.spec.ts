@@ -15,19 +15,30 @@ const GENERATED_OPENING = 'The Aurora is built for the hours'
 const GENERATED_CLOSING = 'not a daily one.'
 
 /**
- * A real ReadableStream rather than a fulfilled string: the point of this test is the streaming
- * path, and route.fulfill({ body }) would deliver the whole response in one read(). The delay
- * before the first chunk is what makes "disabled while in flight" observable at all.
+ * Holds the response open until the test releases it, so "disabled while in flight" can be
+ * asserted against a state the test controls rather than raced against a timer.
+ *
+ * This used to sleep 400 ms inside the handler to widen the window. That is the one thing a
+ * suite like this must not do: the assertion passed or failed depending on whether the client
+ * settled faster than the sleep, which is precisely the shape of a flake that only shows up on
+ * a loaded CI box.
  */
 async function mockDescribeRoute(page: Page) {
+  let release!: () => void
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+
   await page.route('**/api/ai/describe', async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 400))
+    await held
     await route.fulfill({
       status: 200,
       headers: { 'content-type': 'text/plain; charset=utf-8' },
       body: CHUNKS.join(''),
     })
   })
+
+  return { release }
 }
 
 async function fillNewProduct(page: Page, name: string) {
@@ -77,7 +88,7 @@ test('the route rejects a request with no specs to work from', async ({ page }) 
 
 test('an admin generates a description, edits it, and it survives the save', async ({ page }) => {
   await signUpAsAdmin(page)
-  await mockDescribeRoute(page)
+  const stream = await mockDescribeRoute(page)
 
   const name = `Describe Test ${crypto.randomUUID().slice(0, 8)}`
   await fillNewProduct(page, name)
@@ -89,7 +100,10 @@ test('an admin generates a description, edits it, and it survives the save', asy
   await generate.click()
 
   // One request at a time per admin (SPEC 3.6) — the button is out of action until it lands.
+  // The response is still held open here, so this is not a race: it cannot have landed yet.
   await expect(page.getByRole('button', { name: 'Generating…' })).toBeDisabled()
+
+  stream.release()
 
   await expect(editor).toContainText(GENERATED_OPENING)
   await expect(editor).toContainText(GENERATED_CLOSING)

@@ -1,36 +1,19 @@
 import { expect, test, type Page } from '@playwright/test'
-import { Client } from 'pg'
+import { productIdBySlug } from './shop'
 
 /**
  * Seed facts this file leans on (scripts/seed.ts): 30 published products plus one draft, 24 per
  * page so exactly two pages, Wearables has 5, "Lumen" matches 3, "Kotori" matches 2 of which
  * only 1 is published.
  *
- * The exact counts are safe under fullyParallel even though other specs create products:
- * createProduct never sets isPublished, so everything they mint is a draft and cannot reach the
- * public grid. Nothing here logs in — proxy.ts guards /admin only, and the catalog is public.
+ * Page-1 and category counts are safe under fullyParallel: they are bounded by PAGE_SIZE or by
+ * a category no other spec writes to. The *total* published count is not safe any more —
+ * admin.spec.ts publishes a product to prove SPEC flow 4 reaches the public grid, so anything
+ * asserting "exactly 30 published" would race it. See the note on the pagination test.
+ *
+ * Nothing here logs in — proxy.ts guards /admin only, and the catalog is public.
  */
 const DRAFT_SLUG = 'kotori-16-creator-laptop'
-
-async function productIdBySlug(slug: string): Promise<string> {
-  const connectionString = process.env.DATABASE_URL
-  if (!connectionString) {
-    throw new Error('DATABASE_URL is not set — playwright.config.ts should have loaded .env')
-  }
-
-  const client = new Client({ connectionString })
-  try {
-    await client.connect()
-    const { rows } = await client.query<{ id: string }>('SELECT id FROM products WHERE slug = $1', [
-      slug,
-    ])
-    const id = rows[0]?.id
-    if (!id) throw new Error(`No product seeded with slug ${slug} — run pnpm db:seed`)
-    return id
-  } finally {
-    await client.end()
-  }
-}
 
 /** SiteHeader renders a <ul> too, so the grid has to be addressed by its accessible name. */
 function grid(page: Page) {
@@ -100,7 +83,11 @@ test('pagination walks the catalog and drops the link at each end', async ({ pag
   await pagination.getByRole('link', { name: 'Next' }).click()
 
   await expect(page).toHaveURL('/?page=2')
-  await expect(grid(page).getByRole('listitem')).toHaveCount(6)
+  // Deliberately not an exact count: admin.spec.ts publishes a product for the duration of one
+  // test, which would make this 7. What matters here is that page 2 exists, is not empty, and
+  // is the last one — a newly published product sorts newest-first onto page 1, so the content
+  // assertions below are unaffected either way.
+  await expect(grid(page).getByRole('listitem')).not.toHaveCount(0)
   await expect(pagination).toContainText('Page 2 of 2')
   // created_at is staggered by the seed, so newest-first puts the oldest product last.
   await expect(page.getByRole('link', { name: 'Aurora Over-Ear Headphones' })).toBeVisible()

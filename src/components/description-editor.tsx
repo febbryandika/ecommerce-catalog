@@ -7,6 +7,7 @@ import { useEffect, useId, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Toggle } from '@/components/ui/toggle'
+import { toParagraphs } from '@/lib/stream-html'
 import { Label } from '@/components/ui/label'
 import { describeSchema } from '@/lib/validation'
 
@@ -22,23 +23,6 @@ type Props = {
   id?: string
   'aria-describedby'?: string
   'aria-invalid'?: boolean
-}
-
-const escapeHtml = (text: string) =>
-  text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
-
-/**
- * The stream arrives as plain text, so the blank lines the prompt asks for have to become real
- * paragraphs — pushing the raw text at TipTap would parse it as HTML and collapse all of it into
- * one block. Escaping first is what stops a stray '<' mid-sentence from opening a tag.
- */
-function toParagraphs(text: string): string {
-  return text
-    .split(/\n{2,}/)
-    .map((block) => block.trim())
-    .filter(Boolean)
-    .map((block) => `<p>${escapeHtml(block)}</p>`)
-    .join('')
 }
 
 /** A 403/400 from the route is JSON; an unexpected 500 is Next's HTML error page. */

@@ -11,10 +11,14 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "test:e2e:strict": "playwright test --retries=0",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "node --env-file-if-exists=.env scripts/seed.ts"
+    "db:seed": "node --env-file-if-exists=.env scripts/seed.ts",
+    "ensure-env": "node scripts/ensure-env.mjs",
+    "test:all": "pnpm ensure-env && docker compose up -d --wait && pnpm test && pnpm test:e2e"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.39",
@@ -53,6 +57,7 @@
     "@types/pg": "^8.21.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "4.1.10",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
