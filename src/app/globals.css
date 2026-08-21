@@ -67,7 +67,10 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* WCAG 2.2 SC 1.4.11 wants 3:1 for a focus indicator. The stock shadcn oklch(0.708) is 2.59:1
+     on this background, and it is painted at 50% alpha on top of that. 0.45 gives ~7:1. The
+     .dark block is left alone — oklch(0.556) there already clears 3:1. */
+  --ring: oklch(0.45 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -120,7 +123,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   body {
     @apply bg-background text-foreground;

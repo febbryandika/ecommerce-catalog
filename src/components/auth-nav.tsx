@@ -1,8 +1,10 @@
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
+import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { authClient } from '@/lib/auth-client'
 
@@ -14,6 +16,7 @@ import { authClient } from '@/lib/auth-client'
 export function AuthNav() {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const [signingOut, startSignOut] = useTransition()
   const { data: session, isPending } = authClient.useSession()
 
   if (isPending) {
@@ -44,13 +47,20 @@ export function AuthNav() {
         <Button
           variant="outline"
           size="sm"
-          onClick={async () => {
-            await authClient.signOut()
-            // The cart and wishlist caches belong to the session that just ended.
-            queryClient.clear()
-            router.refresh()
-          }}
+          // Without the guard a second click fires signOut again while the first is still in
+          // flight — the same double-submit hazard the cart controls disable for (SPEC 3.7).
+          disabled={signingOut}
+          aria-busy={signingOut}
+          onClick={() =>
+            startSignOut(async () => {
+              await authClient.signOut()
+              // The cart and wishlist caches belong to the session that just ended.
+              queryClient.clear()
+              router.refresh()
+            })
+          }
         >
+          {signingOut ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
           Sign out
         </Button>
       </li>

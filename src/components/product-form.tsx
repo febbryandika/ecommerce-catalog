@@ -1,6 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
@@ -228,7 +229,14 @@ export function ProductForm({ product, categories }: Props) {
         ) : null}
 
         <div className="flex items-center gap-3">
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <Button
+            type="submit"
+            disabled={form.formState.isSubmitting}
+            aria-busy={form.formState.isSubmitting}
+          >
+            {form.formState.isSubmitting ? (
+              <Loader2 className="animate-spin" aria-hidden="true" />
+            ) : null}
             {product ? 'Save changes' : 'Create product'}
           </Button>
           <Button variant="outline" asChild>

@@ -137,7 +137,9 @@ export function ImageDropzone({ value, onValueChange, alt, onUploadError, ...inp
         }}
       />
 
-      {uploading ? <progress value={progress} max={100} className="w-full" /> : null}
+      {uploading ? (
+        <progress value={progress} max={100} aria-label="Upload progress" className="w-full" />
+      ) : null}
 
       <p id={statusId} aria-live="polite" className="text-muted-foreground text-sm">
         {uploading
