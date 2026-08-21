@@ -8,7 +8,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  /* var(--font-sans) here was self-referential, so it resolved to nothing and `font-sans`
+     emitted an empty font-family — the whole app fell back to the UA serif. The layout names
+     the variable --font-geist-sans, the same way --font-mono below points at --font-geist-mono. */
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
