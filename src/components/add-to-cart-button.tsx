@@ -6,6 +6,7 @@ import type { CartLineItem } from '@/lib/cart-queries'
 import { Button } from '@/components/ui/button'
 import { authClient } from '@/lib/auth-client'
 import { useAddToCart } from '@/lib/cart-client'
+import { useHydrated } from '@/lib/use-hydrated'
 import { loginIntentHref } from '@/lib/validation'
 
 type Product = Pick<CartLineItem, 'productId' | 'name' | 'price' | 'imageUrl' | 'stock'>
@@ -35,11 +36,13 @@ export function AddToCartButton({
   const add = useAddToCart()
   const pathname = usePathname()
   const router = useRouter()
+  const hydrated = useHydrated()
 
   const outOfStock = product.stock === 0
   const label = outOfStock ? 'Out of stock' : 'Add to cart'
 
-  if (sessionPending) {
+  // See wishlist-toggle.tsx: the first client render must match the server's placeholder.
+  if (!hydrated || sessionPending) {
     return (
       <Button size={size} className={className} disabled>
         {label}
