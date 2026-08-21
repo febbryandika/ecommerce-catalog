@@ -122,13 +122,20 @@ test('a product detail page renders with its own title and OG tags', async ({ pa
   // U+FFE5 FULLWIDTH YEN SIGN, not U+00A5 — same as format.test.ts.
   await expect(page.getByText('￥34,800')).toBeVisible()
 
-  // The head is rewritten as part of the client-side navigation, and for a moment it can carry
-  // both the layout's default description and this page's — or neither. It always settles on
-  // exactly one (measured: 1 of 16 navigations sampled mid-update, 0 of 16 after settling), but
-  // Playwright raises a strict-mode violation the instant a locator matches two nodes and does
-  // *not* retry that, so sampling mid-update fails outright. toHaveCount does retry, so this
-  // waits for the finished head — and asserts the thing that actually matters for SEO, that
-  // there is exactly one description, which the assertions below never checked.
+  // Everything below is about what a *crawler* receives, so it is asserted against the
+  // server-rendered document rather than the one the client-side navigation left behind.
+  //
+  // That distinction is load-bearing, not tidiness. After a client-side navigation Next can
+  // leave the root layout's default description in the head alongside this page's, and on CI it
+  // stays that way — the assertion saw two nodes for the full 5 s retry window, on all three
+  // attempts. It is harmless for SEO, because a crawler issues its own GET and never navigates
+  // client-side, but it makes an assertion against the live head non-deterministic. A reload
+  // renders the document the way a crawler would fetch it, where layout and page metadata are
+  // merged server-side into one tag and there is no previous route left to linger.
+  await page.reload()
+
+  // Exactly one description tag is itself part of the contract — two would split the signal —
+  // and none of the assertions below would have caught a duplicate.
   await expect(page.locator('meta[name="description"]')).toHaveCount(1)
 
   // SEO is the stated reason this project is Stack A, so the head is the assertion that
