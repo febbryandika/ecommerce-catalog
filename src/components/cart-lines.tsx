@@ -1,6 +1,6 @@
 'use client'
 
-import { Minus, Plus, Trash2 } from 'lucide-react'
+import { Loader2, Minus, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -37,6 +37,14 @@ export function CartLines({ emptyAction }: { emptyAction?: React.ReactNode }) {
   // One pending flag for the whole list rather than per row: the mutations share the ['cart']
   // cache, so letting a second row be clicked mid-write is the same double-submit hazard.
   const pending = updateQuantity.isPending || removeFromCart.isPending
+
+  // Every row is disabled during a write, but only one is actually changing, so the spinner is
+  // placed on that row alone. The in-flight mutation's own variables say which (SPEC 3.7).
+  const busyProductId = updateQuantity.isPending
+    ? updateQuantity.variables?.line.productId
+    : removeFromCart.isPending
+      ? removeFromCart.variables?.line.productId
+      : undefined
 
   return (
     <ul aria-label="Cart items" className="divide-y">
@@ -75,12 +83,20 @@ export function CartLines({ emptyAction }: { emptyAction?: React.ReactNode }) {
               <span className="sr-only">Decrease quantity of {line.name}</span>
             </Button>
 
-            <span
-              className="w-8 text-center text-sm tabular-nums"
-              aria-label={`Quantity of ${line.name}`}
-            >
-              {line.quantity}
-            </span>
+            {busyProductId === line.productId ? (
+              <span className="flex w-8 justify-center">
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                <span className="sr-only">Updating {line.name}…</span>
+              </span>
+            ) : (
+              // The prefix is an sr-only child rather than an aria-label on the span: a bare
+              // <span> maps to the `generic` role, which does not permit a name, so the label
+              // would be discarded and the quantity announced as a naked number.
+              <span className="w-8 text-center text-sm tabular-nums">
+                <span className="sr-only">Quantity of {line.name}: </span>
+                {line.quantity}
+              </span>
+            )}
 
             <Button
               type="button"

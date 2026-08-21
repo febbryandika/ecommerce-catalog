@@ -1,5 +1,6 @@
 'use client'
 
+import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
@@ -59,10 +60,12 @@ export function ProductRowActions({ id, name, isPublished }: Props) {
         variant="ghost"
         size="sm"
         disabled={pending}
+        aria-busy={pending}
         onClick={() =>
           run(() => togglePublish(id), isPublished ? `Unpublished ${name}.` : `Published ${name}.`)
         }
       >
+        {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
         {isPublished ? 'Unpublish' : 'Publish'}
         <span className="sr-only"> {name}</span>
       </Button>
@@ -84,8 +87,11 @@ export function ProductRowActions({ id, name, isPublished }: Props) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
+              disabled={pending}
+              aria-busy={pending}
               onClick={() => run(() => deleteProduct(id), `Deleted ${name}.`)}
             >
+              {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

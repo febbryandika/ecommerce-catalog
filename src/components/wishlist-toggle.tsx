@@ -1,6 +1,6 @@
 'use client'
 
-import { Heart } from 'lucide-react'
+import { Heart, Loader2 } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import type { WishlistItem } from '@/lib/cart-queries'
 import { Button } from '@/components/ui/button'
@@ -55,9 +55,14 @@ export function WishlistToggle({ product }: { product: WishlistItem }) {
       className={className}
       aria-pressed={saved ?? false}
       disabled={toggle.isPending}
+      aria-busy={toggle.isPending}
       onClick={() => toggle.mutate(product)}
     >
-      <Heart className={cn(saved && 'fill-current')} />
+      {toggle.isPending ? (
+        <Loader2 className="animate-spin" aria-hidden="true" />
+      ) : (
+        <Heart className={cn(saved && 'fill-current')} />
+      )}
       <span className="sr-only">
         {saved
           ? `Remove ${product.name} from your wishlist`

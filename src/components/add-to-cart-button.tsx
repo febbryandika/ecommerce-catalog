@@ -1,5 +1,6 @@
 'use client'
 
+import { Loader2 } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import type { CartLineItem } from '@/lib/cart-queries'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,9 @@ type Product = Pick<CartLineItem, 'productId' | 'name' | 'price' | 'imageUrl' | 
  * A button rather than a Link on purpose. An anchor here would put a second and third link
  * carrying the product's name inside every card, which collides with the stretched title link
  * that makes the card one link — and would have the grid prefetch /login once per card.
+ *
+ * All three branches carry the same sr-only product name. Dropping it from one of them would
+ * make the accessible name change on hydration, which is also what the E2E suite matches on.
  */
 export function AddToCartButton({
   product,
@@ -39,6 +43,7 @@ export function AddToCartButton({
     return (
       <Button size={size} className={className} disabled>
         {label}
+        <span className="sr-only"> — {product.name}</span>
       </Button>
     )
   }
@@ -66,8 +71,12 @@ export function AddToCartButton({
       // isPending covers the double-submit case the +/- controls also guard against: a second
       // click before the write settles would add a second unit.
       disabled={outOfStock || add.isPending}
+      aria-busy={add.isPending}
       onClick={() => add.mutate({ product, quantity: 1 })}
     >
+      {/* The label never changes while pending — the E2E suite matches this button by its
+          accessible name, and the spinner is hidden from it. */}
+      {add.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
       {label}
       <span className="sr-only"> — {product.name}</span>
     </Button>

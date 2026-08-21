@@ -2,7 +2,7 @@
 
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { Bold, Heading2, Italic, List } from 'lucide-react'
+import { Bold, Heading2, Italic, List, Loader2 } from 'lucide-react'
 import { useEffect, useId, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -229,7 +229,8 @@ export function DescriptionEditor({
           disabled={streaming}
         />
 
-        <Button type="button" onClick={generate} disabled={streaming}>
+        <Button type="button" onClick={generate} disabled={streaming} aria-busy={streaming}>
+          {streaming ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
           {streaming ? 'Generating…' : 'Generate description'}
         </Button>
 

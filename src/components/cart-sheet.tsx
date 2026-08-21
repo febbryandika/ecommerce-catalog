@@ -26,7 +26,8 @@ import { authClient } from '@/lib/auth-client'
  * no gain (src/store/filters.ts makes the same argument about filter values).
  *
  * Radix's Dialog gives the sheet its focus trap, Esc-to-close and focus return to the trigger.
- * SPEC 3.7 says to verify that rather than assume it — e2e/cart.spec.ts does.
+ * SPEC 3.7 says to verify that rather than assume it: e2e/cart.spec.ts covers Esc-closes and
+ * focus-returns-to-trigger, and e2e/keyboard.spec.ts covers the trap itself in both directions.
  *
  * There is deliberately no checkout button: checkout, payment and orders are project #29
  * (SPEC 12).
