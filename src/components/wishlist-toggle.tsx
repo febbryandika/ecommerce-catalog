@@ -6,6 +6,7 @@ import type { WishlistItem } from '@/lib/cart-queries'
 import { Button } from '@/components/ui/button'
 import { authClient } from '@/lib/auth-client'
 import { cn } from '@/lib/utils'
+import { useHydrated } from '@/lib/use-hydrated'
 import { loginIntentHref } from '@/lib/validation'
 import { useIsWishlisted, useToggleWishlist } from '@/lib/wishlist-client'
 
@@ -24,11 +25,14 @@ export function WishlistToggle({ product }: { product: WishlistItem }) {
   const toggle = useToggleWishlist()
   const pathname = usePathname()
   const router = useRouter()
+  const hydrated = useHydrated()
 
   // The heart sits on top of ProductCard's stretched title link, which covers the whole card.
   const className = 'relative z-10'
 
-  if (sessionPending) {
+  // !hydrated as well as sessionPending: the server always renders this placeholder, so the
+  // first client render has to render it too or hydration mismatches (src/lib/use-hydrated.ts).
+  if (!hydrated || sessionPending) {
     return <div className="size-9" aria-hidden="true" />
   }
 

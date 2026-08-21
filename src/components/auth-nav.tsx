@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { authClient } from '@/lib/auth-client'
+import { useHydrated } from '@/lib/use-hydrated'
 
 /**
  * Reads the session on the client on purpose. Making SiteHeader an async Server Component
@@ -17,9 +18,11 @@ export function AuthNav() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [signingOut, startSignOut] = useTransition()
+  const hydrated = useHydrated()
   const { data: session, isPending } = authClient.useSession()
 
-  if (isPending) {
+  // The server always renders nothing here, so the first client render must too.
+  if (!hydrated || isPending) {
     return null
   }
 
