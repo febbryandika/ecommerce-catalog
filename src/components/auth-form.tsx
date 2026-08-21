@@ -1,6 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -14,16 +15,23 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { addToCart } from '@/actions/cart'
+import { toggleWishlist } from '@/actions/wishlist'
 import { authClient } from '@/lib/auth-client'
 import { signupSchema, type SignupInput } from '@/lib/validation'
 
 type Props = {
   mode: 'login' | 'signup'
   next: string
+  /** Product id from a signed-out add-to-cart click, replayed once after sign-in (SPEC 3.4). */
+  add?: string
+  /** The wishlist equivalent (SPEC 3.5). */
+  wish?: string
 }
 
-export function AuthForm({ mode, next }: Props) {
+export function AuthForm({ mode, next, add, wish }: Props) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const isSignup = mode === 'signup'
 
   // Both modes resolve to the same field set so a single form serves both. Login keeps an
@@ -47,6 +55,29 @@ export function AuthForm({ mode, next }: Props) {
       form.setError('root', { message: error.message ?? 'Something went wrong. Try again.' })
       return
     }
+
+    // Replay the intent that sent the visitor here, exactly once. It lives in this submit
+    // handler rather than in an effect on the destination page on purpose: an effect would fire
+    // again on remount and — because the param would still be in the URL — a second time on
+    // refresh, which is precisely the "added twice" bug. A submit handler runs once per
+    // submission, and by the time router.push lands, the URL carrying the intent is gone.
+    //
+    // Failures are swallowed deliberately: the sign-in succeeded, and blocking the redirect on a
+    // secondary action would strand the user on the login page with a valid session.
+    if (add) {
+      await addToCart({ productId: add, quantity: 1 })
+    } else if (wish) {
+      await toggleWishlist({ productId: wish })
+    }
+
+    // Cleared after the replay, not before: the header's cart query refetches the moment the
+    // cache is dropped, and doing that first would race the write and cache an empty cart that
+    // staleTime would then hold on to.
+    //
+    // It has to happen at all because the cache was populated for whoever was here before — an
+    // anonymous visitor, or a previous account — and one session's cart must not be shown to the
+    // next.
+    queryClient.clear()
 
     router.push(next)
     router.refresh()
