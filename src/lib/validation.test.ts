@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   describeSchema,
+  loginIntentHref,
   MAX_IMAGE_BYTES,
   productImageSchema,
   productSchema,
@@ -200,5 +201,28 @@ describe('describeSchema', () => {
 
     expect(result.success).toBe(true)
     expect(result.data).toEqual({ name: 'Aurora Headphones', specs: '- 40 mm drivers' })
+  })
+})
+
+describe('loginIntentHref', () => {
+  it('carries the add intent alongside the return path', () => {
+    expect(loginIntentHref('/products/abc', 'add', 'abc')).toBe(
+      '/login?next=%2Fproducts%2Fabc&add=abc',
+    )
+  })
+
+  it('carries the wish intent', () => {
+    expect(loginIntentHref('/products/abc', 'wish', 'abc')).toBe(
+      '/login?next=%2Fproducts%2Fabc&wish=abc',
+    )
+  })
+
+  it('sanitises the return path through safeNextPath', () => {
+    // An off-site next would otherwise turn the login page into an open redirect.
+    expect(loginIntentHref('//evil.example.com', 'add', 'abc')).toBe('/login?next=%2F&add=abc')
+  })
+
+  it('encodes a return path that already has a query string', () => {
+    expect(loginIntentHref('/?q=lens', 'add', 'abc')).toBe('/login?next=%2F%3Fq%3Dlens&add=abc')
   })
 })

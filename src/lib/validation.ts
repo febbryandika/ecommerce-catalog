@@ -89,3 +89,40 @@ export function safeNextPath(next: string | undefined | null): string {
   }
   return next
 }
+
+/**
+ * The other half of the same URL contract: where a signed-out add-to-cart or wishlist click
+ * sends the user (SPEC 3.4, 3.5). The intent rides in the query string and nowhere else — there
+ * is no guest cart table and no server-side pending state to reconcile.
+ *
+ * `add` and `wish` are separate keys rather than one typed key, so replaying is a lookup rather
+ * than a parse, and an unknown key is simply ignored instead of half-matching.
+ */
+export function loginIntentHref(next: string, intent: 'add' | 'wish', productId: string): string {
+  const params = new URLSearchParams({ next: safeNextPath(next), [intent]: productId })
+  return `/login?${params.toString()}`
+}
+
+/**
+ * Cart and wishlist inputs. `productId` is the only identifier a client may send — the userId
+ * is always taken from the session on the server, never from the request (SPEC 8), so there is
+ * deliberately no user field here to parse.
+ *
+ * quantity is a strict `z.int()` for the same reason price and stock are: `z.coerce.number()`
+ * turns '' and null into 0, which would silently mean "remove this line" instead of failing.
+ * The 99 ceiling matches SPEC 5.1; the real cap is the product's stock, applied in SQL at
+ * write time because stock can change between the client rendering a control and the write.
+ */
+export const productIdSchema = z.object({
+  productId: z.string().min(1, 'Missing product id.'),
+})
+
+export const cartItemSchema = productIdSchema.extend({
+  quantity: z
+    .int({ error: 'Enter a quantity.' })
+    .min(1, 'Quantity must be at least 1.')
+    .max(99, 'Quantity is too large.'),
+})
+
+export type ProductIdInput = z.infer<typeof productIdSchema>
+export type CartItemInput = z.infer<typeof cartItemSchema>
