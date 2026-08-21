@@ -28,10 +28,19 @@ export async function signUpAsCustomer(page: Page) {
   return account
 }
 
+/**
+ * Logs in and waits for the session to actually exist, rather than for the click to land.
+ *
+ * The barrier matters for the same reason it does in signUpAsCustomer: scrypt at N=16384 blocks
+ * the dev server's event loop, so the next assertion would otherwise start racing a login that
+ * has not finished. Waiting on the header flipping is a wait on state — the header only renders
+ * Sign out once AuthNav has a session — not a duration.
+ */
 export async function logIn(page: Page, email: string, password: string) {
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Log in' }).click()
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible({ timeout: 30_000 })
 }
 
 /**

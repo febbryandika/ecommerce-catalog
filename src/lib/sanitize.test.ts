@@ -95,6 +95,17 @@ describe('toMetaDescription', () => {
     expect(result).not.toMatch(/wor…$/)
   })
 
+  it('hard-cuts a long run with no space to break on', () => {
+    // The else branch of the word-boundary search: lastIndexOf(' ') is -1 inside the window, so
+    // there is no boundary to fall back to and the cut has to be taken mid-word rather than
+    // returning an empty string. A 200-character slug-like token is the realistic shape.
+    const result = toMetaDescription(`<p>${'x'.repeat(200)}</p>`)
+
+    expect(result.length).toBeLessThanOrEqual(160)
+    expect(result.endsWith('…')).toBe(true)
+    expect(result.startsWith('xxxx')).toBe(true)
+  })
+
   it('returns an empty string for an empty description', () => {
     expect(toMetaDescription('')).toBe('')
   })

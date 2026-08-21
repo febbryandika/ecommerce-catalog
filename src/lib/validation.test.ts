@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cartItemSchema,
   describeSchema,
   loginIntentHref,
+  loginSchema,
   MAX_IMAGE_BYTES,
+  productIdSchema,
   productImageSchema,
   productSchema,
   safeNextPath,
@@ -201,6 +204,73 @@ describe('describeSchema', () => {
 
     expect(result.success).toBe(true)
     expect(result.data).toEqual({ name: 'Aurora Headphones', specs: '- 40 mm drivers' })
+  })
+})
+
+describe('loginSchema', () => {
+  const valid = { email: 'shopper@example.com', password: 'correct-horse-8' }
+
+  it('accepts a well-formed email and an 8-character password', () => {
+    expect(loginSchema.safeParse(valid).success).toBe(true)
+  })
+
+  it('rejects a malformed email', () => {
+    // signupSchema extends this one, so the rule is exercised there transitively — but the
+    // login form imports loginSchema directly and is the only caller of this branch.
+    expect(loginSchema.safeParse({ ...valid, email: 'shopper@' }).success).toBe(false)
+    expect(loginSchema.safeParse({ ...valid, email: 'not an email' }).success).toBe(false)
+  })
+
+  it('rejects a password one character under the minimum', () => {
+    expect(loginSchema.safeParse({ ...valid, password: '1234567' }).success).toBe(false)
+  })
+})
+
+describe('productIdSchema', () => {
+  it('accepts a product id', () => {
+    expect(productIdSchema.safeParse({ productId: 'abc123' }).success).toBe(true)
+  })
+
+  it('rejects an empty or missing id', () => {
+    // removeFromCart and toggleWishlist parse through this; an empty string would reach the
+    // DELETE as a valid-looking value.
+    expect(productIdSchema.safeParse({ productId: '' }).success).toBe(false)
+    expect(productIdSchema.safeParse({}).success).toBe(false)
+  })
+})
+
+describe('cartItemSchema', () => {
+  const valid = { productId: 'abc123', quantity: 1 }
+
+  it('accepts the ends of the allowed range', () => {
+    expect(cartItemSchema.safeParse({ ...valid, quantity: 1 }).success).toBe(true)
+    expect(cartItemSchema.safeParse({ ...valid, quantity: 99 }).success).toBe(true)
+  })
+
+  it('rejects a quantity outside the range', () => {
+    // 0 is the interesting end: updateQuantity treats it as "remove the line", so a 0 that
+    // parses is a silent delete rather than a rejected write (SPEC 5.1).
+    expect(cartItemSchema.safeParse({ ...valid, quantity: 0 }).success).toBe(false)
+    expect(cartItemSchema.safeParse({ ...valid, quantity: -1 }).success).toBe(false)
+    expect(cartItemSchema.safeParse({ ...valid, quantity: 100 }).success).toBe(false)
+  })
+
+  it('rejects a fractional quantity', () => {
+    expect(cartItemSchema.safeParse({ ...valid, quantity: 1.5 }).success).toBe(false)
+  })
+
+  it('rejects the shapes z.coerce.number() would have turned into zero', () => {
+    // The regression the strict z.int() exists for, and the counterpart of the productSchema
+    // price test above: coercion maps '' and null to 0, which here means "remove the line".
+    expect(cartItemSchema.safeParse({ ...valid, quantity: '' }).success).toBe(false)
+    expect(cartItemSchema.safeParse({ ...valid, quantity: null }).success).toBe(false)
+    expect(cartItemSchema.safeParse({ ...valid, quantity: undefined }).success).toBe(false)
+    expect(cartItemSchema.safeParse({ ...valid, quantity: '2' }).success).toBe(false)
+    expect(cartItemSchema.safeParse({ ...valid, quantity: Number.NaN }).success).toBe(false)
+  })
+
+  it('still requires the product id it extends', () => {
+    expect(cartItemSchema.safeParse({ productId: '', quantity: 1 }).success).toBe(false)
   })
 })
 

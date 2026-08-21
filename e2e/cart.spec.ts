@@ -20,6 +20,49 @@ import {
 test.describe.configure({ timeout: 60_000 })
 
 /**
+ * SPEC 9 flow 2 end to end, as one journey rather than as pieces: browse the grid, filter it,
+ * open a product from it, add to the cart, change the quantity, remove.
+ *
+ * The tests below deliberately start at /products/<id> with the id read from Postgres, which
+ * keeps them off the debounced search box and off the grid's ordering — good for the edge cases
+ * they cover, but it means nothing exercised the path a customer actually takes. This does.
+ */
+test('browse, filter, open a product, then add, adjust and remove it', async ({ page }) => {
+  await signUpAsCustomer(page)
+
+  await page.goto('/')
+  await expect(page.getByRole('list', { name: 'Products' })).toBeVisible()
+
+  // Filter by category rather than by search: the category select writes the URL immediately,
+  // while ?q= is debounced and a click inside that window can cancel the navigation (CLAUDE.md).
+  await page.getByRole('combobox', { name: 'Category' }).click()
+  await expect(page.getByRole('listbox')).toBeVisible()
+  await page.getByRole('option', { name: 'Wearables' }).click()
+  await expect(page).toHaveURL('/?category=wearables')
+
+  // LOW_STOCK is seeded into Wearables, so it is reachable from this filtered grid.
+  await page.getByRole('link', { name: LOW_STOCK.name }).click()
+  await expect(page).toHaveURL(/\/products\/[a-z0-9]+$/)
+  await expect(page.getByRole('heading', { level: 1, name: LOW_STOCK.name })).toBeVisible()
+
+  await page.getByRole('button', { name: `Add to cart — ${LOW_STOCK.name}` }).click()
+  await expect(cartTrigger(page)).toHaveAccessibleName('Open cart, 1 item')
+  await settled(page, `${LOW_STOCK.name} added to your cart.`)
+
+  await page.goto('/cart')
+  const line = cartList(page).getByRole('listitem').filter({ hasText: LOW_STOCK.name })
+  await expect(line).toContainText(jpy(LOW_STOCK.price))
+
+  await line.getByRole('button', { name: `Increase quantity of ${LOW_STOCK.name}` }).click()
+  await expect(cartTrigger(page)).toHaveAccessibleName('Open cart, 2 items')
+  await expect(line).toContainText(jpy(LOW_STOCK.price * 2))
+
+  await line.getByRole('button', { name: `Remove ${LOW_STOCK.name} from your cart` }).click()
+  await expect(page.getByText('Your cart is empty.')).toBeVisible()
+  await expect(cartTrigger(page)).toHaveAccessibleName('Open cart, empty')
+})
+
+/**
  * Quantity changes are driven from /cart rather than from inside the sheet: Radix marks the rest
  * of the page aria-hidden while the sheet is open, so the header badge — the clearest proof the
  * cache updated — is deliberately unreachable there. The sheet gets its own test below.

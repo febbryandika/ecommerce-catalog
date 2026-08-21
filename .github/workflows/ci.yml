@@ -28,7 +28,13 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ecommerce_catalog
+      # The E2E suite runs against its own database and wipes it before every run
+      # (e2e/global-setup.ts). Naming it explicitly rather than letting playwright.config.ts
+      # derive it keeps the two environments on the same code path.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ecommerce_catalog_e2e
       BETTER_AUTH_SECRET: ci-secret-not-used-outside-this-job
+      # playwright.config.ts overrides this for the server it starts; the value here is what the
+      # non-E2E steps see.
       BETTER_AUTH_URL: http://localhost:3000
       # No R2_* on purpose: the upload round-trip test skips itself rather than failing, and a
       # build with them absent is the check that the S3 client is built lazily (src/lib/r2.ts).
@@ -73,9 +79,16 @@ jobs:
 
       - run: pnpm test:e2e
 
+      # playwright-report/ only exists because playwright.config.ts now registers the html
+      # reporter — with the previous `reporter: 'list'` nothing wrote that directory and this
+      # step uploaded an empty artifact, which is why a red CI run left no trace to open.
+      # test-results/ carries the traces themselves (trace: 'on-first-retry').
       - uses: actions/upload-artifact@v5
         if: failure()
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/
           retention-days: 7
+          if-no-files-found: ignore

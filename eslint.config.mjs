@@ -18,6 +18,8 @@ const eslintConfig = defineConfig([
     'drizzle/**',
     'playwright-report/**',
     'test-results/**',
+    // The v8 coverage HTML report ships its own vendored scripts.
+    'coverage/**',
   ]),
 ])
 

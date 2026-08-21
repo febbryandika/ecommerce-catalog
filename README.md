@@ -5,13 +5,14 @@
 A product catalog where admins manage inventory and customers browse, add to cart, and save
 to a wishlist. Product pages are server-rendered for SEO.
 
-> **Status: Phase 7 — AI description editor.** The toolchain, app shell, catalog schema,
-> email/password auth, the admin catalog, image upload to Cloudflare R2 and the demo seed are
-> in place: `/admin/products` lists, creates, edits, publishes and deletes products, each with
-> one uploaded image, and `pnpm db:seed` fills the catalog with 31 products and two demo
-> accounts. Product descriptions are now edited in TipTap, with marketing copy streaming in
-> live from Claude and sanitised on save. The public catalog, cart and wishlist still render
-> placeholders.
+> **Status: Phase 11 — test suite.** Everything through the public catalog is in place: the
+> toolchain and app shell, the schema and migrations, email/password auth with roles, the admin
+> catalog with image upload to Cloudflare R2, TipTap descriptions with marketing copy streaming
+> in live from Claude and sanitised on save, the server-rendered grid with search, category
+> filter and pagination, product detail pages with `generateMetadata`, and a cart and wishlist
+> persisted per user with optimistic updates. Loading, error and empty states and the
+> accessibility pass have landed on top of that. What remains is deployment and the
+> screenshots below.
 
 ## Demo accounts
 
@@ -45,7 +46,18 @@ pnpm db:seed                  # 5 categories, 31 products, 2 demo accounts
 pnpm dev                      # http://localhost:3000
 ```
 
-Generate `BETTER_AUTH_SECRET` with `openssl rand -base64 32`.
+Or, to go straight to a green test run on a clean clone:
+
+```bash
+pnpm install
+pnpm test:all                 # writes .env, starts Postgres, runs both suites
+```
+
+`pnpm test:all` creates `.env` from `.env.example` with a generated `BETTER_AUTH_SECRET` **only
+if `.env` does not already exist** — it will never overwrite real keys. `ANTHROPIC_API_KEY` and
+`R2_*` are left blank, and the two tests that need them skip themselves.
+
+Generate `BETTER_AUTH_SECRET` by hand with `openssl rand -base64 32` if you prefer.
 
 Postgres is published on **5437** rather than the default 5432 to avoid colliding with other
 local databases. `DATABASE_URL` in `.env.example` already matches.
@@ -127,19 +139,22 @@ Two things the script does that the app cannot:
 
 ## Scripts
 
-| Script             | Purpose                                         |
-| ------------------ | ----------------------------------------------- |
-| `pnpm dev`         | Dev server                                      |
-| `pnpm build`       | Production build                                |
-| `pnpm start`       | Serve the production build                      |
-| `pnpm lint`        | ESLint (flat config; `next lint` is gone in 16) |
-| `pnpm typecheck`   | `next typegen` then `tsc --noEmit`              |
-| `pnpm format`      | Prettier write · `format:check` to verify       |
-| `pnpm test`        | Vitest unit tests                               |
-| `pnpm test:e2e`    | Playwright E2E                                  |
-| `pnpm db:generate` | Generate migrations from `src/db/schema.ts`     |
-| `pnpm db:migrate`  | Apply migrations                                |
-| `pnpm db:seed`     | Seed the demo catalog and accounts (idempotent) |
+| Script                 | Purpose                                         |
+| ---------------------- | ----------------------------------------------- |
+| `pnpm dev`             | Dev server                                      |
+| `pnpm build`           | Production build                                |
+| `pnpm start`           | Serve the production build                      |
+| `pnpm lint`            | ESLint (flat config; `next lint` is gone in 16) |
+| `pnpm typecheck`       | `next typegen` then `tsc --noEmit`              |
+| `pnpm format`          | Prettier write · `format:check` to verify       |
+| `pnpm test`            | Vitest unit tests                               |
+| `pnpm test:coverage`   | Vitest with a coverage report                   |
+| `pnpm test:e2e`        | Playwright E2E                                  |
+| `pnpm test:e2e:strict` | Playwright with no retries — flake audit        |
+| `pnpm test:all`        | Everything, from a clean clone                  |
+| `pnpm db:generate`     | Generate migrations from `src/db/schema.ts`     |
+| `pnpm db:migrate`      | Apply migrations                                |
+| `pnpm db:seed`         | Seed the demo catalog and accounts (idempotent) |
 
 `typecheck` runs `next typegen` first because Next 16 generates `next-env.d.ts` and the typed
 route helpers (`PageProps`, `LayoutProps`) into `.next/types` — neither is committed, so a bare
@@ -154,10 +169,51 @@ account to admin over the same database the app uses, the way an admin is made b
 
 ```bash
 pnpm test                     # Vitest, scoped to src/**/*.test.ts
+pnpm test:coverage            # the same, with a coverage report
 pnpm test:e2e                 # Playwright, scoped to e2e/
+pnpm test:all                 # both suites from a clean clone, one command
 ```
 
 CI runs `lint → typecheck → format:check → vitest → playwright` on every pull request and on
 `main`, against a Postgres service container. It deliberately sets no `R2_*` variables: the
 upload round-trip test skips itself, and a build with them absent is what proves the S3 client
-in `src/lib/r2.ts` is constructed lazily rather than at module load.
+in `src/lib/r2.ts` is constructed lazily rather than at module load. The admin journey covering
+`SPEC` §9 flow 4 mocks R2 and Anthropic at the network boundary instead, so it still runs there.
+
+### The E2E database
+
+Playwright never touches the database `pnpm dev` uses. It runs against `<your database>_test`
+(override with `TEST_DATABASE_URL`), which `e2e/global-setup.ts` creates if needed, migrates,
+empties and re-seeds **before every run**. Two consequences worth knowing:
+
+- Every run starts from exactly what the seed writes — 5 categories, 31 products, 30 of them
+  published, 2 demo accounts — no matter what the previous run left behind. The suite has no
+  teardown by design, so without this the accounts and draft products pile up. On this machine
+  the dev database had reached 579 accounts before the split.
+- Anything you created by hand while developing is safe.
+
+The suite also runs on port **3100**, not 3000, so another project's dev server cannot be
+adopted by `reuseExistingServer` and quietly serve the tests the wrong app.
+
+### Reading the coverage report
+
+`pnpm test:coverage` prints a table and writes a browsable one to `coverage/index.html`.
+
+| Column              | Means                                                       |
+| ------------------- | ----------------------------------------------------------- |
+| `% Stmts`           | statements executed                                         |
+| `% Branch`          | branches taken — the column that catches an untested `else` |
+| `% Funcs`           | functions called at least once                              |
+| `Uncovered Line #s` | the part actually worth reading                             |
+
+**Read the uncovered lines, not the percentage.** The report is scoped to `src/lib/**` — the
+pure logic — and deliberately excludes the modules a node-environment unit suite cannot execute:
+`auth.ts`, `auth-client.ts`, `cart-queries.ts`, `cart-client.ts`, `wishlist-client.ts` and
+`use-hydrated.ts` are React hooks, Drizzle queries or `next/headers` callers, and Playwright
+covers them instead. Including them would report a large red block that only says "the E2E suite
+tests this".
+
+There are no thresholds, and adding one would be the wrong move: the goal is to see what is
+uncovered and judge whether it could silently produce wrong data, not to defend a number.
+`r2.ts` sits at ~18% on purpose — `putProductImage` is a network call, and only
+`imageObjectKey` beside it is unit-testable.
