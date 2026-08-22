@@ -2,17 +2,20 @@
 
 [![CI](https://github.com/febbryandika/ecommerce-catalog/actions/workflows/ci.yml/badge.svg)](https://github.com/febbryandika/ecommerce-catalog/actions/workflows/ci.yml)
 
+**Live demo: https://ecommerce-catalog-mauve-six.vercel.app**
+
 A product catalog where admins manage inventory and customers browse, add to cart, and save
 to a wishlist. Product pages are server-rendered for SEO.
 
-> **Status: Phase 11 — test suite.** Everything through the public catalog is in place: the
+> **Status: Phase 12 — deployed.** Everything through the public catalog is in place: the
 > toolchain and app shell, the schema and migrations, email/password auth with roles, the admin
 > catalog with image upload to Cloudflare R2, TipTap descriptions with marketing copy streaming
 > in live from Claude and sanitised on save, the server-rendered grid with search, category
 > filter and pagination, product detail pages with `generateMetadata`, and a cart and wishlist
-> persisted per user with optimistic updates. Loading, error and empty states and the
-> accessibility pass have landed on top of that. What remains is deployment and the
-> screenshots below.
+> persisted per user with optimistic updates. Loading, error and empty states, the accessibility
+> pass and the test suite have landed on top of that, and the app now runs on Vercel against a
+> Neon database. What remains is the screenshots below, and product photography for the seed
+> catalogue — the demo currently renders its 31 products without images.
 
 ## Demo accounts
 
@@ -164,6 +167,48 @@ Playwright needs its browser once: `pnpm exec playwright install chromium`.
 
 `playwright.config.ts` loads `.env` itself — the upload suite promotes its own throwaway
 account to admin over the same database the app uses, the way an admin is made by hand.
+
+## Deployment
+
+Vercel, with a Neon Postgres database in `ap-southeast-1` and the functions pinned to `sin1`
+beside it — the grid and detail pages query per request, so a cross-ocean hop would land on
+every render. Hobby allows exactly one region.
+
+`vercel.json` carries the whole configuration:
+
+```json
+{
+  "buildCommand": "pnpm db:migrate && pnpm build",
+  "ignoreCommand": "[ \"$VERCEL_ENV\" = production ] && exit 1 || exit 0"
+}
+```
+
+Migrations run as part of the build rather than by hand, so a failed migration fails the deploy.
+The `ignoreCommand` is inverted by Vercel's convention — **exit 0 skips the build, exit 1
+proceeds** — so anything that is not `VERCEL_ENV=production` is skipped, and a pull request
+branch can never run `drizzle-kit` against the production database. CI already gates pull
+requests.
+
+No secrets live in the repository. Every variable in `.env.example` is set as a Vercel
+environment variable, with two deliberate differences: `BETTER_AUTH_SECRET` is generated fresh
+for production rather than copied from local, and **`TEST_DATABASE_URL` is not set at all** — it
+exists only for `e2e/global-setup.ts`, which drops and re-seeds whatever it points at.
+
+### Sanitising in a serverless runtime
+
+Descriptions are sanitised with `sanitize-html` rather than DOMPurify. DOMPurify needs a DOM, and
+`isomorphic-dompurify` supplies one with jsdom — which sits on Next's default
+`serverExternalPackages` list, so Turbopack leaves it as a runtime `require()` instead of
+bundling it. jsdom now reaches the ESM-only `@exodus/bytes`, and Vercel's serverless runtime runs
+Node with `require(esm)` disabled, so every page importing the sanitiser returned 500 in
+production while working locally. Reproduce that locally with:
+
+```bash
+node --no-experimental-require-module -e "require('jsdom')"
+```
+
+`sanitize-html` parses instead of needing a DOM and is not on the external list, so it is bundled
+and its own ESM dependencies resolve at build time.
 
 ## Testing
 

@@ -1,4 +1,17 @@
-import DOMPurify from 'isomorphic-dompurify'
+import sanitizeHtml from 'sanitize-html'
+
+/**
+ * A parser-based sanitiser rather than DOMPurify, which needs a DOM and so dragged jsdom in
+ * through isomorphic-dompurify. `jsdom` is on Next's default `serverExternalPackages` list, so
+ * Turbopack leaves it as a runtime `require()` instead of bundling it — and jsdom's tree now
+ * reaches the ESM-only `@exodus/bytes` through both html-encoding-sniffer and whatwg-url.
+ * Vercel's serverless runtime runs Node with `require(esm)` disabled, so that require throws
+ * ERR_REQUIRE_ESM and every page importing this file 500s in production while working locally.
+ *
+ * sanitize-html is not on that list, so it is bundled and its own ESM dependencies are resolved
+ * at build time. Reproduce the production failure locally with:
+ *   node --no-experimental-require-module -e "require('jsdom')"
+ */
 
 /**
  * Everything TipTap's StarterKit can emit here, and nothing else. The editor is configured with
@@ -29,12 +42,20 @@ const ALLOWED_TAGS = [
  * Server Actions rather than in the editor because the client is not the boundary — a crafted
  * POST straight at createProduct never touches TipTap at all.
  *
- * href survives because StarterKit autolinks pasted URLs; DOMPurify drops the attribute
- * outright when the scheme is not one it considers safe, so javascript: cannot get through.
+ * href survives because StarterKit autolinks pasted URLs; sanitize-html drops the attribute
+ * outright when the scheme is not on `allowedSchemes`, so javascript: cannot get through.
  * No class, no style, no event handlers — this HTML is rendered on a public page.
+ *
+ * `script`/`style` contents go with the tag rather than being flattened into text: that is
+ * sanitize-html's `nonTextTags` default, and it is why `<script>alert(1)</script>` leaves
+ * nothing behind instead of leaving `alert(1)` as visible prose.
  */
 export function sanitizeDescription(html: string): string {
-  return DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR: ['href'] })
+  return sanitizeHtml(html, {
+    allowedTags: ALLOWED_TAGS,
+    allowedAttributes: { a: ['href'] },
+    allowedSchemes: ['http', 'https', 'mailto'],
+  })
 }
 
 /** Block boundaries become a space; inline tags do not, because `a<strong>b</strong>` reads "ab". */
@@ -44,22 +65,35 @@ const BLOCK_BOUNDARY = /<\/(?:p|h2|h3|li|blockquote|pre|div)>|<br\s*\/?>/gi
 const META_DESCRIPTION_MAX = 160
 
 /**
+ * The five entities sanitize-html's text escaper emits. Stripping tags decodes the input's
+ * entities and then re-escapes them on the way out, so "Home &amp; Kitchen" would arrive as
+ * "Home &amp;amp; Kitchen" and React would escape the ampersand a second time. One pass over
+ * this table undoes exactly that final escape and nothing more — a single global replace never
+ * rescans what it substituted, so "&amp;amp;" correctly yields "&amp;".
+ */
+const ESCAPED = new Map([
+  ['&amp;', '&'],
+  ['&lt;', '<'],
+  ['&gt;', '>'],
+  ['&quot;', '"'],
+  ['&#39;', "'"],
+])
+
+/**
  * Stored description HTML to plain text for <meta name="description"> (SPEC 3.2). Not a
- * security boundary — sanitizeDescription already ran on save — it is a formatter, and it
- * reuses DOMPurify rather than a regex because only a real parse decodes &amp; and &nbsp;.
- *
- * RETURN_DOM + textContent rather than the string overload: sanitize() serialises back to
- * HTML, so the string form hands back "Home &amp;amp; Kitchen" and React then escapes the
- * ampersand a second time. The seed descriptions contain both entities, so this is the
- * difference between a correct meta tag and a visibly broken one.
+ * security boundary — sanitizeDescription already ran on save — it is a formatter, and it runs
+ * the real parser rather than a tag regex because only a parse turns &nbsp; into a space.
  */
 export function toMetaDescription(html: string): string {
-  const node = DOMPurify.sanitize(html.replace(BLOCK_BOUNDARY, ' '), {
-    ALLOWED_TAGS: [],
-    ALLOWED_ATTR: [],
-    RETURN_DOM: true,
+  const stripped = sanitizeHtml(html.replace(BLOCK_BOUNDARY, ' '), {
+    allowedTags: [],
+    allowedAttributes: {},
   })
-  const text = (node.textContent ?? '').replace(/\s+/g, ' ').trim()
+  const text = stripped
+    .replace(/&(?:amp|lt|gt|quot|#39);/g, (entity) => ESCAPED.get(entity) ?? entity)
+    // \s covers the U+00A0 that &nbsp; decodes to, so it collapses with ordinary runs.
+    .replace(/\s+/g, ' ')
+    .trim()
 
   if (text.length <= META_DESCRIPTION_MAX) {
     return text
